@@ -624,9 +624,13 @@ def main():
         ),
     )
     parser.add_argument(
-        "--no-ocr",
-        action="store_true",
-        help="Skip OCR even if Tesseract is available",
+        "--ocr",
+        choices=["on", "off"],
+        default="on",
+        help=(
+            "OCR mode for embedded images: 'on' uses Tesseract when available, "
+            "'off' skips OCR entirely (default: on)"
+        ),
     )
     parser.add_argument(
         "--ocr-lang",
@@ -637,9 +641,13 @@ def main():
         ),
     )
     parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Also write a JSON summary alongside the .md file and print it to stdout",
+        "--print-json",
+        choices=["yes", "no"],
+        default="no",
+        help=(
+            "Also write a JSON summary alongside the .md file and print it to "
+            "stdout (default: no)"
+        ),
     )
     args = parser.parse_args()
 
@@ -647,7 +655,7 @@ def main():
     result = node.extract(
         output_dir=args.output_dir,
         image_subdir=args.image_subdir,
-        ocr=not args.no_ocr,
+        ocr=(args.ocr == "on"),
         ocr_lang=args.ocr_lang,
     )
 
@@ -658,9 +666,9 @@ def main():
         f"{meta['images']} image(s) -> '{md}'."
     )
     if not meta["ocr_enabled"]:
-        print("OCR disabled (Tesseract not available or --no-ocr passed).")
+        print("OCR disabled (Tesseract not available or --ocr off passed).")
 
-    if args.json:
+    if args.print_json == "yes":
         json_str = node.to_json(result)
         json_path = Path(md).with_suffix(".json")
         json_path.write_text(json_str, encoding="utf-8")

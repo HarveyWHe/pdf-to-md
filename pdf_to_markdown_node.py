@@ -49,6 +49,7 @@ class PDFToMarkdownNode:
     DEFAULT_OUTPUT_DIR = "output_md"
     DEFAULT_IMAGE_SUBDIR = "images"
     DEFAULT_OCR_LANG = "eng"
+    DEFAULT_OCR_FLAG = "on"
 
     TABLE_STRICT_SETTINGS: Dict[str, Any] = {
         "vertical_strategy": "lines_strict",
@@ -97,7 +98,7 @@ class PDFToMarkdownNode:
         self,
         output_dir: str = DEFAULT_OUTPUT_DIR,
         image_subdir: str = DEFAULT_IMAGE_SUBDIR,
-        ocr: bool = True,
+        ocr: str = DEFAULT_OCR_FLAG,
         ocr_lang: str = DEFAULT_OCR_LANG,
     ) -> Dict[str, Any]:
         """
@@ -109,8 +110,10 @@ class PDFToMarkdownNode:
             Directory where the ``.md`` file and ``images/`` folder are written.
         image_subdir : str
             Subdirectory (inside ``output_dir``) where image files are stored.
-        ocr : bool
-            Attempt OCR on each extracted image. Silently disabled if neither
+        ocr : str
+            ``"on"`` to attempt OCR on each extracted image (default), ``"off"``
+            to skip OCR entirely. Python booleans are also accepted for
+            backwards compatibility. OCR is silently disabled if neither
             ``pytesseract`` nor a working ``tesseract`` binary is available.
         ocr_lang : str
             Tesseract language code(s), e.g. ``"eng"`` or ``"eng+chi_sim"``.
@@ -123,7 +126,7 @@ class PDFToMarkdownNode:
         if not self._doc or not self._pdf_path:
             raise RuntimeError("No PDF loaded. Call load() first.")
 
-        ocr_enabled = bool(ocr) and self._is_ocr_runtime_available()
+        ocr_enabled = self._coerce_ocr_flag(ocr) and self._is_ocr_runtime_available()
 
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
@@ -569,6 +572,16 @@ class PDFToMarkdownNode:
         first = first.replace("[", "(").replace("]", ")")
         return first[:80].strip()
 
+    @staticmethod
+    def _coerce_ocr_flag(value: Any) -> bool:
+        """Accept legacy bool as well as string flags ('on'/'off', 'true'/'false')."""
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        text = str(value).strip().lower()
+        return text in ("on", "yes", "true", "1", "enable", "enabled")
+
     def _is_ocr_runtime_available(self) -> bool:
         if not _PYTESSERACT_IMPORTED:
             return False
@@ -655,7 +668,7 @@ def main():
     result = node.extract(
         output_dir=args.output_dir,
         image_subdir=args.image_subdir,
-        ocr=(args.ocr == "on"),
+        ocr=args.ocr,
         ocr_lang=args.ocr_lang,
     )
 
